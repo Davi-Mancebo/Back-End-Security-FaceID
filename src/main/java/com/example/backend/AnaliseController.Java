@@ -1,4 +1,4 @@
-package com.example.backend.src.controller;
+package com.example.backend.controller;
 
 import com.example.backend.src.model.Analise;
 import com.example.backend.src.service.AnaliseService;

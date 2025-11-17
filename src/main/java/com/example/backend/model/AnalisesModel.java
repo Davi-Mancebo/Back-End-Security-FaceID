@@ -1,10 +1,17 @@
-package com.example.backend.src.model;
+package com.example.backend.model;
 
 import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "analises")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class AnalisesModel {
 
     @Id
@@ -14,9 +21,12 @@ public class AnalisesModel {
     @Column(nullable = false)
     private String dispositivo;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private boolean status;
+
+    @Lob
+    @Column(nullable = false)
+    private byte[] imagem; // <-- imagem em BLOB
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

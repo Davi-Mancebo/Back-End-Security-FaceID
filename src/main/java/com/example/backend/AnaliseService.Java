@@ -1,4 +1,4 @@
-package com.example.backend.src.service;
+package com.example.backend.service;
 
 import com.example.backend.src.model.Analise;
 import com.example.backend.src.repository.AnaliseRepository;
