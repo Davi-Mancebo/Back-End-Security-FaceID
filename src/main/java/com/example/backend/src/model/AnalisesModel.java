@@ -1,4 +1,4 @@
-package com.example.backend.model;
+package com.example.backend.src.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
