@@ -44,57 +44,63 @@ public class AnalisesService {
     }
 
     public AnalisesModel salvarAnalise(String dispositivoNome, MultipartFile foto) throws Exception {
-        // 1. Dispositivo
-        DispositivoModel dispositivo = dispositivoRepository.findByNome(dispositivoNome);
-        if (dispositivo == null) {
-            dispositivo = new DispositivoModel();
-            dispositivo.setNome(dispositivoNome);
-            dispositivo.setTipo("Desconhecido");
-            dispositivo.setLocalizacao("");
-            dispositivo = dispositivoRepository.save(dispositivo);
+        try {
+            // 1. Dispositivo
+            DispositivoModel dispositivo = dispositivoRepository.findByNome(dispositivoNome);
+            if (dispositivo == null) {
+                dispositivo = new DispositivoModel();
+                dispositivo.setNome(dispositivoNome);
+                dispositivo.setTipo("Desconhecido");
+                dispositivo.setLocalizacao("");
+                dispositivo = dispositivoRepository.save(dispositivo);
+            }
+
+            // 2. Imagem
+            byte[] imageBytes = foto.getBytes();
+            ImagemModel imagem = new ImagemModel();
+            imagem.setNomeArquivo(foto.getOriginalFilename());
+            imagem.setTamanho(foto.getSize());
+            imagem.setHash(""); // pode calcular hash se quiser
+            imagem.setDados(imageBytes);
+            imagem = imagemRepository.save(imagem);
+
+            // 3. Chama API Python para emoção
+            EmotionApiResult emotionResult = callEmotionApiFull(imageBytes);
+            if (emotionResult == null) throw new RuntimeException("Erro ao analisar emoção na API Python");
+
+            // 4. Emoção
+            EmocaoModel emocao = new EmocaoModel();
+            emocao.setNome(emotionResult.emotion);
+            emocao.setScore(null); // não vem score da API
+            emocao.setDataHora(java.time.LocalDateTime.now());
+            emocao = emocaoRepository.save(emocao);
+
+            // 5. Resultado
+            ResultadoModel resultado = new ResultadoModel();
+            resultado.setResultado(emotionResult.isTarget ? "Alvo" : "Normal");
+            resultado.setDetalhes("Emoção dominante: " + emotionResult.emotion);
+            resultado = resultadoRepository.save(resultado);
+
+            // 6. Log de processamento
+            LogProcessamentoModel log = new LogProcessamentoModel();
+            log.setDataHora(java.time.LocalDateTime.now());
+            log.setStatus("OK");
+            log.setMensagem("Análise criada com sucesso");
+            log = logProcessamentoRepository.save(log);
+
+            // 7. Monta AnalisesModel
+            AnalisesModel model = new AnalisesModel();
+            model.setDispositivo(dispositivo);
+            model.setImagem(imagem);
+            model.setEmocao(emocao);
+            model.setResultado(resultado);
+            model.setLogProcessamento(log);
+            model.setStatus(emotionResult.isTarget);
+            return analisesRepository.save(model);
+        } catch (Exception e) {
+            // Log do erro pode ser adicionado aqui
+            throw new Exception("Erro ao salvar análise: " + e.getMessage(), e);
         }
-
-        // 2. Imagem
-        byte[] imageBytes = foto.getBytes();
-        ImagemModel imagem = new ImagemModel();
-        imagem.setNomeArquivo(foto.getOriginalFilename());
-        imagem.setTamanho(foto.getSize());
-        imagem.setHash(""); // pode calcular hash se quiser
-        imagem.setDados(imageBytes);
-        imagem = imagemRepository.save(imagem);
-
-        // 3. Chama API Python para emoção
-        EmotionApiResult emotionResult = callEmotionApiFull(imageBytes);
-
-        // 4. Emoção
-        EmocaoModel emocao = new EmocaoModel();
-        emocao.setNome(emotionResult.emotion);
-        emocao.setScore(null); // não vem score da API
-        emocao.setDataHora(java.time.LocalDateTime.now());
-        emocao = emocaoRepository.save(emocao);
-
-        // 5. Resultado
-        ResultadoModel resultado = new ResultadoModel();
-        resultado.setResultado(emotionResult.isTarget ? "Alvo" : "Normal");
-        resultado.setDetalhes("Emoção dominante: " + emotionResult.emotion);
-        resultado = resultadoRepository.save(resultado);
-
-        // 6. Log de processamento
-        LogProcessamentoModel log = new LogProcessamentoModel();
-        log.setDataHora(java.time.LocalDateTime.now());
-        log.setStatus("OK");
-        log.setMensagem("Análise criada com sucesso");
-        log = logProcessamentoRepository.save(log);
-
-        // 7. Monta AnalisesModel
-        AnalisesModel model = new AnalisesModel();
-        model.setDispositivo(dispositivo);
-        model.setImagem(imagem);
-        model.setEmocao(emocao);
-        model.setResultado(resultado);
-        model.setLogProcessamento(log);
-        model.setStatus(emotionResult.isTarget);
-        return analisesRepository.save(model);
     }
 
     // Classe auxiliar para resposta da API Python

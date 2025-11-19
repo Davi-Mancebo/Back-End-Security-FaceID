@@ -36,12 +36,22 @@ public class AnalisesController {
 
     // UPLOAD (CREATE)
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public AnalisesDTO upload(
-            @RequestParam("dispositivo") String dispositivo,
-            @RequestParam("imagem") MultipartFile foto
-    ) throws Exception {
-        AnalisesModel model = service.salvarAnalise(dispositivo, foto);
-        return service.toAnalisesDTO(model);
+    public ResponseEntity<?> upload(
+            @RequestParam(value = "dispositivo", required = false) String dispositivo,
+            @RequestParam(value = "imagem", required = false) MultipartFile foto
+    ) {
+        if (dispositivo == null || dispositivo.isBlank()) {
+            return ResponseEntity.badRequest().body("O campo 'dispositivo' é obrigatório.");
+        }
+        if (foto == null || foto.isEmpty()) {
+            return ResponseEntity.badRequest().body("O campo 'imagem' é obrigatório.");
+        }
+        try {
+            AnalisesModel model = service.salvarAnalise(dispositivo, foto);
+            return ResponseEntity.ok(service.toAnalisesDTO(model));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Erro ao processar análise: " + e.getMessage());
+        }
     }
 
     // UPDATE (apenas status, para exemplo)
