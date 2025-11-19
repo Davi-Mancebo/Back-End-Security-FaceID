@@ -18,13 +18,27 @@ public class AnalisesModel {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String dispositivo;
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "dispositivo_id")
+    private DispositivoModel dispositivo;
+
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "imagem_id")
+    private ImagemModel imagem;
+
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "emocao_id")
+    private EmocaoModel emocao;
+
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "resultado_id")
+    private ResultadoModel resultado;
+
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "log_id")
+    private LogProcessamentoModel logProcessamento;
 
     private boolean status;
-
-    @Lob
-    @Column(nullable = false)
-    private byte[] imagem; // Armazena a foto como BLOB
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

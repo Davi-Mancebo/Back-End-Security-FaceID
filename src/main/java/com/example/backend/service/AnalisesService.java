@@ -1,50 +1,192 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.AnalisesDTO;
-import com.example.backend.model.AnalisesModel;
-import com.example.backend.repository.AnalisesRepository;
+import com.example.backend.model.*;
+import com.example.backend.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 
 import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+
 public class AnalisesService {
+    private final AnalisesRepository analisesRepository;
+    private final DispositivoRepository dispositivoRepository;
+    private final ImagemRepository imagemRepository;
+    private final EmocaoRepository emocaoRepository;
+    private final ResultadoRepository resultadoRepository;
+    private final LogProcessamentoRepository logProcessamentoRepository;
 
-    private final AnalisesRepository repository;
-
-    public AnalisesService(AnalisesRepository repository) {
-        this.repository = repository;
+    public AnalisesService(
+        AnalisesRepository analisesRepository,
+        DispositivoRepository dispositivoRepository,
+        ImagemRepository imagemRepository,
+        EmocaoRepository emocaoRepository,
+        ResultadoRepository resultadoRepository,
+        LogProcessamentoRepository logProcessamentoRepository
+    ) {
+        this.analisesRepository = analisesRepository;
+        this.dispositivoRepository = dispositivoRepository;
+        this.imagemRepository = imagemRepository;
+        this.emocaoRepository = emocaoRepository;
+        this.resultadoRepository = resultadoRepository;
+        this.logProcessamentoRepository = logProcessamentoRepository;
     }
 
-    public AnalisesModel salvarAnalise(String dispositivo, boolean status, MultipartFile foto) throws Exception {
+    public AnalisesModel salvarAnalise(String dispositivoNome, MultipartFile foto) throws Exception {
+        // 1. Dispositivo
+        DispositivoModel dispositivo = dispositivoRepository.findByNome(dispositivoNome);
+        if (dispositivo == null) {
+            dispositivo = new DispositivoModel();
+            dispositivo.setNome(dispositivoNome);
+            dispositivo.setTipo("Desconhecido");
+            dispositivo.setLocalizacao("");
+            dispositivo = dispositivoRepository.save(dispositivo);
+        }
+
+        // 2. Imagem
+        byte[] imageBytes = foto.getBytes();
+        ImagemModel imagem = new ImagemModel();
+        imagem.setNomeArquivo(foto.getOriginalFilename());
+        imagem.setTamanho(foto.getSize());
+        imagem.setHash(""); // pode calcular hash se quiser
+        imagem.setDados(imageBytes);
+        imagem = imagemRepository.save(imagem);
+
+        // 3. Chama API Python para emoção
+        EmotionApiResult emotionResult = callEmotionApiFull(imageBytes);
+
+        // 4. Emoção
+        EmocaoModel emocao = new EmocaoModel();
+        emocao.setNome(emotionResult.emotion);
+        emocao.setScore(null); // não vem score da API
+        emocao.setDataHora(java.time.LocalDateTime.now());
+        emocao = emocaoRepository.save(emocao);
+
+        // 5. Resultado
+        ResultadoModel resultado = new ResultadoModel();
+        resultado.setResultado(emotionResult.isTarget ? "Alvo" : "Normal");
+        resultado.setDetalhes("Emoção dominante: " + emotionResult.emotion);
+        resultado = resultadoRepository.save(resultado);
+
+        // 6. Log de processamento
+        LogProcessamentoModel log = new LogProcessamentoModel();
+        log.setDataHora(java.time.LocalDateTime.now());
+        log.setStatus("OK");
+        log.setMensagem("Análise criada com sucesso");
+        log = logProcessamentoRepository.save(log);
+
+        // 7. Monta AnalisesModel
         AnalisesModel model = new AnalisesModel();
         model.setDispositivo(dispositivo);
-        model.setStatus(status);
-        model.setImagem(foto.getBytes()); // <-- transforma MultipartFile em byte[]
-        return repository.save(model);
+        model.setImagem(imagem);
+        model.setEmocao(emocao);
+        model.setResultado(resultado);
+        model.setLogProcessamento(log);
+        model.setStatus(emotionResult.isTarget);
+        return analisesRepository.save(model);
+    }
+
+    // Classe auxiliar para resposta da API Python
+    private static class EmotionApiResult {
+        public boolean isTarget;
+        public String emotion;
+    }
+
+    // Chama API Python e retorna emoção e isTarget
+    private EmotionApiResult callEmotionApiFull(byte[] imageBytes) {
+        String fastApiUrl = "http://localhost:8000/emotion";
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        Resource fileResource = new ByteArrayResource(imageBytes) {
+            @Override
+            public String getFilename() {
+                return "image.jpg";
+            }
+        };
+
+        org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
+        body.add("image", fileResource);
+
+        HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+        EmotionApiResult result = new EmotionApiResult();
+        result.isTarget = false;
+        result.emotion = "";
+        try {
+            ResponseEntity<java.util.Map> response = restTemplate.postForEntity(fastApiUrl, requestEntity, java.util.Map.class);
+            java.util.Map resp = response.getBody();
+            if (resp != null) {
+                Object isTarget = resp.get("result");
+                Object emotion = resp.get("emotion");
+                if (isTarget instanceof Boolean) result.isTarget = (Boolean) isTarget;
+                if (emotion instanceof String) result.emotion = (String) emotion;
+            }
+        } catch (Exception e) {
+            // Log ou tratamento de erro
+        }
+        return result;
+    }
+
+    private boolean callEmotionApi(byte[] imageBytes) {
+        String fastApiUrl = "http://localhost:8000/emotion"; // Change if needed
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        Resource fileResource = new ByteArrayResource(imageBytes) {
+            @Override
+            public String getFilename() {
+                return "image.jpg";
+            }
+        };
+
+        org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
+        body.add("image", fileResource);
+
+        HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<java.util.Map> response = restTemplate.postForEntity(fastApiUrl, requestEntity, java.util.Map.class);
+            Object result = response.getBody().get("result");
+            if (result instanceof Boolean) {
+                return (Boolean) result;
+            }
+        } catch (Exception e) {
+            // Log or handle error as needed
+        }
+        return false; // Default if error
     }
 
     public byte[] buscarImagem(Long id) {
-        return repository.findById(id)
+        return analisesRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Registro não encontrado"))
-                .getImagem();
+                .getImagem().getDados();
     }
 
     public List<AnalisesDTO> listarTudoDTO() {
-        return repository.findAll().stream().map(model -> {
+        return analisesRepository.findAll().stream().map(model -> {
             AnalisesDTO dto = new AnalisesDTO();
             dto.setId(model.getId());
-            dto.setDispositivo(model.getDispositivo());
+            dto.setDispositivo(model.getDispositivo() != null ? model.getDispositivo().getNome() : null);
             dto.setStatus(model.isStatus());
             dto.setCreatedAt(model.getCreatedAt());
             dto.setUpdatedAt(model.getUpdatedAt());
-
-            // Converter para Base64
-            dto.setImagemBase64(Base64.getEncoder().encodeToString(model.getImagem()));
-
+            dto.setImagemBase64(model.getImagem() != null ? Base64.getEncoder().encodeToString(model.getImagem().getDados()) : null);
             return dto;
         }).collect(Collectors.toList());
     }
