@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import com.example.backend.dto.AnalisesDTO;
 import com.example.backend.model.AnalisesModel;
 import com.example.backend.service.AnalisesService;
+import com.example.backend.exception.ServiceUnavailableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -53,8 +54,14 @@ public class AnalisesController {
             payload.put("message", "Análise criada com sucesso");
             payload.put("data", dto);
             return ResponseEntity.ok(payload);
+        } catch (ServiceUnavailableException e) {
+            // API Python offline - erro 503 (Service Unavailable)
+            java.util.Map<String,String> error = new java.util.HashMap<>();
+            error.put("message", "Serviço indisponível");
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(503).body(error);
         } catch (Exception e) {
-            e.printStackTrace();
+            // Outros erros - 500 (Internal Server Error)
             java.util.Map<String,String> error = new java.util.HashMap<>();
             error.put("message", "Erro ao processar análise");
             error.put("error", e.getMessage());

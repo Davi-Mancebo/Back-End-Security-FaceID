@@ -3,6 +3,7 @@ package com.example.backend.service;
 import com.example.backend.dto.AnalisesDTO;
 import com.example.backend.model.*;
 import com.example.backend.repository.*;
+import com.example.backend.exception.ServiceUnavailableException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.HttpEntity;
@@ -57,18 +58,25 @@ public class AnalisesService {
                 dispositivo = dispositivoRepository.save(dispositivo);
             }
 
-            // 2. Imagem
+            // 2. Prepara imagem MAS NÃO SALVA AINDA
             byte[] imageBytes = foto.getBytes();
+
+            // 3. CHAMA API PYTHON PRIMEIRO (validação antes de persistir)
+            EmotionApiResult emotionResult = callEmotionApiFull(imageBytes);
+            if (emotionResult == null) {
+                throw new ServiceUnavailableException("API de análise de emoções está indisponível. Verifique se o servidor Python está rodando.");
+            }
+            if (emotionResult.emotion == null || emotionResult.emotion.isEmpty()) {
+                throw new RuntimeException("API Python retornou dados inválidos");
+            }
+
+            // 4. SÓ AGORA salva a imagem (após confirmar que Python está ok)
             ImagemModel imagem = new ImagemModel();
             imagem.setNomeArquivo(foto.getOriginalFilename());
             imagem.setTamanho(foto.getSize());
-            imagem.setHash(""); // pode calcular hash se quiser
+            imagem.setHash("");
             imagem.setDados(imageBytes);
             imagem = imagemRepository.save(imagem);
-
-            // 3. Chama API Python para emoção
-            EmotionApiResult emotionResult = callEmotionApiFull(imageBytes);
-            if (emotionResult == null) throw new RuntimeException("Erro ao analisar emoção na API Python");
 
             // 4. Emoção
             EmocaoModel emocao = new EmocaoModel();
@@ -153,10 +161,11 @@ public class AnalisesService {
                 if (isTarget instanceof Boolean) result.isTarget = (Boolean) isTarget;
                 if (emotion instanceof String) result.emotion = (String) emotion;
             }
+            return result;
         } catch (Exception e) {
-            // Log ou tratamento de erro
+            LOGGER.severe("Erro ao comunicar com API Python: " + e.getMessage());
+            return null; // Retorna null para indicar falha na comunicação
         }
-        return result;
     }
 
     private boolean callEmotionApi(byte[] imageBytes) {
