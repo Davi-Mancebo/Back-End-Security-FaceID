@@ -197,11 +197,22 @@ public class AnalisesService {
     }
 
     public List<AnalisesDTO> listarTudoDTO() {
-        return analisesRepository.findAll().stream().map(AnalisesDTO::fromModel).collect(Collectors.toList());
+        return analisesRepository.findAll().stream().map(this::toAnalisesDTO).collect(Collectors.toList());
     }
 
     public AnalisesDTO buscarAnaliseDTO(Long id) {
-        return analisesRepository.findById(id).map(AnalisesDTO::fromModel).orElse(null);
+        return analisesRepository.findById(id).map(this::toAnalisesDTO).orElse(null);
+    }
+
+    public AnalisesDTO toAnalisesDTO(AnalisesModel model) {
+        AnalisesDTO dto = new AnalisesDTO();
+        dto.setId(model.getId());
+        dto.setDispositivo(model.getDispositivo() != null ? model.getDispositivo().getNome() : null);
+        dto.setStatus(model.isStatus());
+        dto.setCreatedAt(model.getCreatedAt());
+        dto.setUpdatedAt(model.getUpdatedAt());
+        dto.setImagemBase64(model.getImagem() != null ? Base64.getEncoder().encodeToString(model.getImagem().getDados()) : null);
+        return dto;
     }
 
     public AnalisesModel atualizarStatus(Long id, boolean status) {
