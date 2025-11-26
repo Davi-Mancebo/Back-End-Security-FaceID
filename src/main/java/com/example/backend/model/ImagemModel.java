@@ -18,6 +18,6 @@ public class ImagemModel {
     private Long tamanho;
     private String hash;
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "LONGBLOB")
     private byte[] dados;
 }

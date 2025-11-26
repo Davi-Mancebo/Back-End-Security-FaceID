@@ -18,27 +18,27 @@ public class AnalisesModel {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "dispositivo_id")
-    private DispositivoModel dispositivo;
+    private boolean status; // ✅ ADICIONAR
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(name = "imagem_id")
     private ImagemModel imagem;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
+    @JoinColumn(name = "dispositivo_id")
+    private DispositivoModel dispositivo;
+
+    @ManyToOne
     @JoinColumn(name = "emocao_id")
     private EmocaoModel emocao;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(name = "resultado_id")
     private ResultadoModel resultado;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(name = "log_id")
     private LogProcessamentoModel logProcessamento;
-
-    private boolean status;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

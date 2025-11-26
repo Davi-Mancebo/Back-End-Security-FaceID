@@ -48,9 +48,17 @@ public class AnalisesController {
         }
         try {
             AnalisesModel model = service.salvarAnalise(dispositivo, foto);
-            return ResponseEntity.ok(service.toAnalisesDTO(model));
+            AnalisesDTO dto = service.toAnalisesDTO(model);
+            java.util.Map<String,Object> payload = new java.util.HashMap<>();
+            payload.put("message", "Análise criada com sucesso");
+            payload.put("data", dto);
+            return ResponseEntity.ok(payload);
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Erro ao processar análise: " + e.getMessage());
+            e.printStackTrace();
+            java.util.Map<String,String> error = new java.util.HashMap<>();
+            error.put("message", "Erro ao processar análise");
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(500).body(error);
         }
     }
 
@@ -58,7 +66,9 @@ public class AnalisesController {
     @PutMapping("/{id}")
     public ResponseEntity<AnalisesDTO> atualizarStatus(@PathVariable Long id, @RequestParam boolean status) {
         AnalisesModel model = service.atualizarStatus(id, status);
-        if (model == null) return ResponseEntity.notFound().build();
+        if (model == null) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(service.toAnalisesDTO(model));
     }
 
@@ -66,13 +76,16 @@ public class AnalisesController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         boolean ok = service.deletarAnalise(id);
-        if (!ok) return ResponseEntity.notFound().build();
+        if (!ok) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.noContent().build();
     }
 
     // BUSCA A FOTO BRUTA
     @GetMapping("/{id}/foto")
-    public @ResponseBody byte[] buscarImagem(@PathVariable Long id) {
+    public @ResponseBody
+    byte[] buscarImagem(@PathVariable Long id) {
         return service.buscarImagem(id);
     }
 }

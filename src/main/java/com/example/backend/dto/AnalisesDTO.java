@@ -1,12 +1,10 @@
 package com.example.backend.dto;
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 
 import com.example.backend.model.AnalisesModel;
-
 import lombok.Data;
-
-import java.util.Base64;
 
 @Data
 public class AnalisesDTO {
@@ -20,13 +18,22 @@ public class AnalisesDTO {
 
     public static AnalisesDTO fromModel(AnalisesModel model) {
         AnalisesDTO dto = new AnalisesDTO();
+
         dto.setId(model.getId());
-        dto.setDispositivo(model.getDispositivo());
+
+        if (model.getDispositivo() != null) {
+            dto.setDispositivo(model.getDispositivo().getNome());
+        }
+
         dto.setStatus(model.isStatus());
         dto.setCreatedAt(model.getCreatedAt());
         dto.setUpdatedAt(model.getUpdatedAt());
 
-        dto.setImagemBase64(Base64.getEncoder().encodeToString(model.getImagem()));
+        if (model.getImagem() != null && model.getImagem().getDados() != null) {
+            dto.setImagemBase64(
+                    Base64.getEncoder().encodeToString(model.getImagem().getDados())
+            );
+        }
 
         return dto;
     }

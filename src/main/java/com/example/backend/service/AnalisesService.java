@@ -14,12 +14,14 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 
 import java.util.Base64;
+import java.util.logging.Logger;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 
 public class AnalisesService {
+    private static final Logger LOGGER = Logger.getLogger(AnalisesService.class.getName());
     private final AnalisesRepository analisesRepository;
     private final DispositivoRepository dispositivoRepository;
     private final ImagemRepository imagemRepository;
@@ -98,7 +100,17 @@ public class AnalisesService {
             model.setStatus(emotionResult.isTarget);
             return analisesRepository.save(model);
         } catch (Exception e) {
-            // Log do erro pode ser adicionado aqui
+            LOGGER.severe("Erro ao salvar análise: " + e.getMessage());
+            // tenta salvar log independente, se possivel
+            try {
+                LogProcessamentoModel errorLog = new LogProcessamentoModel();
+                errorLog.setDataHora(java.time.LocalDateTime.now());
+                errorLog.setStatus("ERRO");
+                errorLog.setMensagem(e.getMessage());
+                logProcessamentoRepository.save(errorLog);
+            } catch (Exception ex) {
+                LOGGER.warning("Erro ao salvar log de erro: " + ex.getMessage());
+            }
             throw new Exception("Erro ao salvar análise: " + e.getMessage(), e);
         }
     }
@@ -185,15 +197,23 @@ public class AnalisesService {
     }
 
     public List<AnalisesDTO> listarTudoDTO() {
-        return analisesRepository.findAll().stream().map(model -> {
-            AnalisesDTO dto = new AnalisesDTO();
-            dto.setId(model.getId());
-            dto.setDispositivo(model.getDispositivo() != null ? model.getDispositivo().getNome() : null);
-            dto.setStatus(model.isStatus());
-            dto.setCreatedAt(model.getCreatedAt());
-            dto.setUpdatedAt(model.getUpdatedAt());
-            dto.setImagemBase64(model.getImagem() != null ? Base64.getEncoder().encodeToString(model.getImagem().getDados()) : null);
-            return dto;
-        }).collect(Collectors.toList());
+        return analisesRepository.findAll().stream().map(AnalisesDTO::fromModel).collect(Collectors.toList());
+    }
+
+    public AnalisesDTO buscarAnaliseDTO(Long id) {
+        return analisesRepository.findById(id).map(AnalisesDTO::fromModel).orElse(null);
+    }
+
+    public AnalisesModel atualizarStatus(Long id, boolean status) {
+        return analisesRepository.findById(id).map(model -> {
+            model.setStatus(status);
+            return analisesRepository.save(model);
+        }).orElse(null);
+    }
+
+    public boolean deletarAnalise(Long id) {
+        if (!analisesRepository.existsById(id)) return false;
+        analisesRepository.deleteById(id);
+        return true;
     }
 }

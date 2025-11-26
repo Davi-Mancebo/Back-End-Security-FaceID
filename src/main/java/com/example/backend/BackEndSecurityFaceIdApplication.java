@@ -4,9 +4,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class BackendSecurityFaceIdApplication {
+public class BackEndSecurityFaceIdApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(BackendSecurityFaceIdApplication.class, args);
+        SpringApplication.run(BackEndSecurityFaceIdApplication.class, args);
     }
 }
