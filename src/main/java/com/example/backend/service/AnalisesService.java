@@ -78,27 +78,27 @@ public class AnalisesService {
             imagem.setDados(imageBytes);
             imagem = imagemRepository.save(imagem);
 
-            // 4. Emoção
+            // 5. Emoção
             EmocaoModel emocao = new EmocaoModel();
             emocao.setNome(emotionResult.emotion);
-            emocao.setScore(null); // não vem score da API
+            emocao.setScore(null);
             emocao.setDataHora(java.time.LocalDateTime.now());
             emocao = emocaoRepository.save(emocao);
 
-            // 5. Resultado
+            // 6. Resultado
             ResultadoModel resultado = new ResultadoModel();
             resultado.setResultado(emotionResult.isTarget ? "Alvo" : "Normal");
             resultado.setDetalhes("Emoção dominante: " + emotionResult.emotion);
             resultado = resultadoRepository.save(resultado);
 
-            // 6. Log de processamento
+            // 7. Log de processamento
             LogProcessamentoModel log = new LogProcessamentoModel();
             log.setDataHora(java.time.LocalDateTime.now());
             log.setStatus("OK");
             log.setMensagem("Análise criada com sucesso");
             log = logProcessamentoRepository.save(log);
 
-            // 7. Monta AnalisesModel
+            // 8. Monta AnalisesModel
             AnalisesModel model = new AnalisesModel();
             model.setDispositivo(dispositivo);
             model.setImagem(imagem);
@@ -166,37 +166,6 @@ public class AnalisesService {
             LOGGER.severe("Erro ao comunicar com API Python: " + e.getMessage());
             return null; // Retorna null para indicar falha na comunicação
         }
-    }
-
-    private boolean callEmotionApi(byte[] imageBytes) {
-        String fastApiUrl = "http://localhost:8000/emotion"; // Change if needed
-        RestTemplate restTemplate = new RestTemplate();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-        Resource fileResource = new ByteArrayResource(imageBytes) {
-            @Override
-            public String getFilename() {
-                return "image.jpg";
-            }
-        };
-
-        org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
-        body.add("image", fileResource);
-
-        HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-
-        try {
-            ResponseEntity<java.util.Map> response = restTemplate.postForEntity(fastApiUrl, requestEntity, java.util.Map.class);
-            Object result = response.getBody().get("result");
-            if (result instanceof Boolean) {
-                return (Boolean) result;
-            }
-        } catch (Exception e) {
-            // Log or handle error as needed
-        }
-        return false; // Default if error
     }
 
     public byte[] buscarImagem(Long id) {

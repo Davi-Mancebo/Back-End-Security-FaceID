@@ -18,7 +18,7 @@ public class AnalisesModel {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private boolean status; // ✅ ADICIONAR
+    private boolean status;
 
     @ManyToOne
     @JoinColumn(name = "imagem_id")

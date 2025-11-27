@@ -21,8 +21,7 @@ Backend Java Spring Boot para análise de segurança com reconhecimento facial e
 ### Backend (Java)
 - **Java 21** (JDK 21)
 - **Maven 3.9+**
-- **MySQL 8.0+** (ou H2 para testes rápidos)
-- **Lombok** (incluído no Maven)
+- **MySQL 8.0+**
 
 ### API Python (Análise de Emoções)
 - **Python 3.10+**
@@ -65,9 +64,11 @@ Frontend → Backend Java (Spring Boot) → API Python (FastAPI + DeepFace) → 
 
 ### 1️⃣ Configurar Banco de Dados
 
-Edite `src/main/resources/application.properties`:
+**Crie o arquivo** `src/main/resources/application.properties` com base no template `application.properties.example`:
 
 ```properties
+spring.application.name=Back-End-Security-FaceID
+
 spring.datasource.url=jdbc:mysql://localhost:3306/security_face_id
 spring.datasource.username=root
 spring.datasource.password=suasenha
@@ -75,6 +76,8 @@ spring.datasource.password=suasenha
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 ```
+
+> ⚠️ **Importante**: O arquivo `application.properties` está no `.gitignore` para proteger credenciais. Use o `application.properties.example` como referência e crie sua própria cópia com suas credenciais reais.
 
 ### 2️⃣ Criar o Banco de Dados
 
@@ -401,19 +404,7 @@ taskkill /F /PID <PID>
 
 ---
 
-### Erro de Lombok na IDE
 
-**Causa:** Annotation processing desabilitado
-
-**Solução (VS Code):**
-1. Instale extensão "Language Support for Java"
-2. Configure Java → Annotation Processing → Enable
-
-**Solução (IntelliJ):**
-1. File → Settings → Build → Compiler → Annotation Processors
-2. Marque "Enable annotation processing"
-
----
 
 ### Imagem Não Aparece no Frontend
 
@@ -470,17 +461,7 @@ Back-End-Security-FaceID/
 
 ---
 
-## 🧪 Testes
 
-```powershell
-# Executar testes unitários
-mvn test
-
-# Executar com cobertura
-mvn clean test jacoco:report
-```
-
----
 
 ## 🔐 Segurança
 
@@ -505,25 +486,9 @@ mvn clean test jacoco:report
 
 ---
 
-## 📈 Melhorias Futuras
 
-- [ ] Paginação em `GET /analises`
-- [ ] Autenticação JWT
-- [ ] Cache com Redis
-- [ ] Compressão de imagens
-- [ ] Webhooks para notificações
-- [ ] Dashboard de métricas
 
----
 
-## 📝 Notas Técnicas
-
-- **Lombok**: Gera getters/setters via annotation processor do Maven
-- **JPA**: `@PrePersist` e `@PreUpdate` gerenciam timestamps automaticamente
-- **Transações**: Service valida Python antes de persistir (atomicidade)
-- **Exceções**: `ServiceUnavailableException` customizada para 503
-
----
 
 ## 📄 Licença
 
