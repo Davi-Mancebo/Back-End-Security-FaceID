@@ -1,6 +1,6 @@
 # Back-End Security FaceID
 
-Backend Java Spring Boot para análise de segurança com reconhecimento facial e detecção de emoções. O sistema recebe imagens de dispositivos, analisa emoções usando DeepFace (Python/FastAPI) e persiste os resultados em banco de dados MySQL.
+Backend Java Spring Boot para análise de segurança com reconhecimento facial e detecção de emoções. O sistema recebe imagens de dispositivos, consulta um serviço Python (FastAPI + DeepFace) e persiste os resultados em um banco MySQL.
 
 ## 📋 Sumário
 
@@ -35,27 +35,27 @@ Backend Java Spring Boot para análise de segurança com reconhecimento facial e
 
 ### Entidades (Banco de Dados)
 
-O sistema utiliza 6 entidades JPA interligadas:
+O sistema utiliza 6 entidades JPA interligadas, agora com nomes em inglês para padronização:
 
-1. **AnalisesModel** - Registro principal da análise
-2. **DispositivoModel** - Metadados do dispositivo (câmera)
-3. **ImagemModel** - Armazena a foto (LONGBLOB)
-4. **EmocaoModel** - Emoção detectada pelo DeepFace
-5. **ResultadoModel** - Classificação (Alvo/Normal)
-6. **LogProcessamentoModel** - Auditoria de operações
+1. **AnalysisModel** – Registro principal da análise
+2. **DeviceModel** – Metadados do dispositivo (câmera)
+3. **ImageModel** – Armazena a foto (LONGBLOB)
+4. **EmotionModel** – Emoção detectada pelo DeepFace
+5. **ResultModel** – Classificação (Target/Normal)
+6. **ProcessingLogModel** – Auditoria das operações
 
 ### Fluxo de Dados
 
 ```
 Frontend → Backend Java (Spring Boot) → API Python (FastAPI + DeepFace) → MySQL
-				↓                               ↓
-		   Valida Python                 Analisa Emoção
-				↓                               ↓
-		   Salva Imagem                   Retorna JSON
-				↓                               ↓
-		   Cria Entidades ← ← ← ← ← ← ← Recebe Resultado
-				↓
-		   Retorna DTO (Base64)
+            ↓                               ↓
+        Valida serviço                  Analisa emoção
+            ↓                               ↓
+        Salva imagem                     Retorna JSON
+            ↓                               ↓
+        Cria entidades ← ← ← ← ← ← ← Recebe resultado
+            ↓
+        Retorna DTO (Base64)
 ```
 
 ---
@@ -77,7 +77,7 @@ spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 ```
 
-> ⚠️ **Importante**: O arquivo `application.properties` está no `.gitignore` para proteger credenciais. Use o `application.properties.example` como referência e crie sua própria cópia com suas credenciais reais.
+> ⚠️ **Importante**: O arquivo `application.properties` está no `.gitignore` para proteger credenciais. Copie o template e preencha com os seus dados.
 
 ### 2️⃣ Criar o Banco de Dados
 
@@ -86,21 +86,16 @@ CREATE DATABASE security_face_id;
 USE security_face_id;
 ```
 
-### 3️⃣ ⚠️ IMPORTANTE - Resolver Conflito de Coluna
+### 3️⃣ Migrar Estruturas Antigas
 
-Se você migrou de uma versão anterior, execute:
+Se você já possuía tabelas antigas, verifique se não existe uma coluna `imagem` na tabela `analises`:
 
 ```sql
 DESCRIBE analises;
-```
-
-Se aparecer uma coluna `imagem` (além de `imagem_id`), remova-a:
-
-```sql
 ALTER TABLE analises DROP COLUMN imagem;
 ```
 
-Isso resolve o erro: `"Field 'imagem' doesn't have a default value"`
+Isso evita o erro `Field 'imagem' doesn't have a default value`.
 
 ---
 
@@ -116,143 +111,106 @@ mvn clean compile
 mvn spring-boot:run
 ```
 
-Servidor disponível em: **http://localhost:8080**
+Servidor disponível em **http://localhost:8080**.
 
-### API Python (Servidor de Análise de Emoções)
-
-Navegue até o repositório da API Python e execute:
+### API Python (Análise de Emoções)
 
 ```powershell
 cd c:\caminho\para\face-service
-
-# Ativar ambiente virtual
 .\venv\Scripts\activate
-
-# Instalar dependências (primeira vez)
-pip install fastapi uvicorn deepface tensorflow opencv-python python-multipart
-
-# Executar servidor
+pip install -r requirements.txt  # Ou instale dependências manualmente
 python -m uvicorn main:app --reload
 ```
 
-Servidor disponível em: **http://localhost:8000**
-
-> ⚠️ **O backend Java PRECISA que a API Python esteja rodando** para funcionar corretamente!
+Servidor disponível em **http://localhost:8000**. O backend Java depende deste serviço estar ativo.
 
 ---
 
 ## 📡 Endpoints da API
 
-### 📤 POST `/analises/upload`
-Faz upload de uma imagem para análise.
+Todos os endpoints agora usam o prefixo `/analyses` e parâmetros em inglês.
+
+### 📤 POST `/analyses/upload`
+Envia uma imagem para análise.
 
 **Parâmetros (multipart/form-data):**
-- `dispositivo` (string, obrigatório) - Nome do dispositivo/câmera
-- `imagem` (file, obrigatório) - Arquivo de imagem (JPG, PNG, etc.)
+- `device` (string, obrigatório) – Nome do dispositivo/câmera
+- `image` (file, obrigatório) – Arquivo JPG/PNG
 
 **Resposta de Sucesso (200):**
 ```json
 {
   "message": "Análise criada com sucesso",
   "data": {
-	"id": 1,
-	"dispositivo": "Camera01",
-	"status": false,
-	"createdAt": "2025-11-26T10:30:00",
-	"updatedAt": "2025-11-26T10:30:00",
-	"imagemBase64": "/9j/4AAQSkZJRg..."
+    "id": 1,
+    "device": "Camera01",
+    "status": false,
+    "createdAt": "2025-11-26T10:30:00",
+    "updatedAt": "2025-11-26T10:30:00",
+    "imageBase64": "/9j/4AAQSkZJRg..."
   }
 }
 ```
 
-**Códigos de Erro:**
-- **400 Bad Request** - Campo obrigatório ausente
-- **503 Service Unavailable** - API Python offline
-- **500 Internal Server Error** - Erro interno no backend
+**Erros comuns:** 400 (campos ausentes), 503 (API Python offline), 500 (erro interno).
 
-**Exemplo com cURL:**
+**Exemplo cURL:**
 ```powershell
-curl -X POST "http://localhost:8080/analises/upload" `
-  -F "dispositivo=Camera01" `
-  -F "imagem=@c:/caminho/para/foto.jpg"
+curl -X POST "http://localhost:8080/analyses/upload" `
+  -F "device=Camera01" `
+  -F "image=@c:/caminho/para/foto.jpg"
 ```
 
 ---
 
-### 📋 GET `/analises`
-Lista todas as análises (com imagem em Base64).
+### 📋 GET `/analyses`
+Lista todas as análises retornando DTO com imagem em Base64.
 
-**Resposta (200):**
 ```json
 [
   {
-	"id": 1,
-	"dispositivo": "Camera01",
-	"status": false,
-	"createdAt": "2025-11-26T10:30:00",
-	"updatedAt": "2025-11-26T10:30:00",
-	"imagemBase64": "/9j/4AAQ..."
+    "id": 1,
+    "device": "Camera01",
+    "status": false,
+    "createdAt": "2025-11-26T10:30:00",
+    "updatedAt": "2025-11-26T10:30:00",
+    "imageBase64": "/9j/4AAQ..."
   }
 ]
 ```
 
 ---
 
-### 🔍 GET `/analises/{id}`
-Busca análise específica por ID.
-
-**Resposta (200):**
-```json
-{
-  "id": 1,
-  "dispositivo": "Camera01",
-  "status": false,
-  "createdAt": "2025-11-26T10:30:00",
-  "updatedAt": "2025-11-26T10:30:00",
-  "imagemBase64": "/9j/4AAQ..."
-}
-```
-
-**Erro (404):** Análise não encontrada
+### 🔍 GET `/analyses/{id}`
+Busca análise por ID. Retorna 404 caso não exista.
 
 ---
 
-### ✏️ PUT `/analises/{id}`
-Atualiza o status de uma análise.
+### ✏️ PUT `/analyses/{id}`
+Atualiza apenas o campo `status`.
 
-**Query Parameter:**
-- `status` (boolean) - Novo status (true/false)
-
-**Exemplo:**
 ```
-PUT /analises/1?status=true
+PUT /analyses/1?status=true
 ```
 
-**Resposta (200):** DTO da análise atualizada
+Retorna o DTO atualizado.
 
 ---
 
-### 🗑️ DELETE `/analises/{id}`
-Deleta uma análise.
-
-**Resposta:**
-- **204 No Content** - Sucesso
-- **404 Not Found** - Análise não encontrada
+### 🗑️ DELETE `/analyses/{id}`
+Remove uma análise. Retorna 204 em caso de sucesso.
 
 ---
 
-### 🖼️ GET `/analises/{id}/foto`
-Retorna os bytes brutos da imagem (para download direto).
+### 🖼️ GET `/analyses/{id}/image`
+Retorna os bytes crus da imagem (ideal para download direto).
 
-**Resposta:** Bytes da imagem (Content-Type: image/jpeg)
-
-**Exemplo JavaScript:**
 ```javascript
-fetch('http://localhost:8080/analises/1/foto')
+fetch('http://localhost:8080/analyses/1/image')
   .then(res => res.blob())
   .then(blob => {
-	const url = URL.createObjectURL(blob);
-	img.src = url;
+    const url = URL.createObjectURL(blob);
+    img.src = url;
   });
 ```
 
@@ -260,25 +218,23 @@ fetch('http://localhost:8080/analises/1/foto')
 
 ## 💾 Como a Imagem é Armazenada
 
-### No Banco de Dados
-
-#### Tabela `imagens`
+### Tabela `imagens`
 ```sql
 CREATE TABLE imagens (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   nome_arquivo VARCHAR(255),
   tamanho BIGINT,
   hash VARCHAR(255),
-  dados LONGBLOB  -- ← Imagem armazenada aqui
+  dados LONGBLOB
 );
 ```
 
-#### Tabela `analises`
+### Tabela `analises`
 ```sql
 CREATE TABLE analises (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   dispositivo_id BIGINT,
-  imagem_id BIGINT,      -- ← Referência, não duplica bytes
+  imagem_id BIGINT,
   emocao_id BIGINT,
   resultado_id BIGINT,
   log_id BIGINT,
@@ -290,68 +246,59 @@ CREATE TABLE analises (
 
 ### Fluxo de Salvamento
 
-1. Frontend envia `FormData` com multipart/form-data
-2. Backend valida se API Python está online
-3. Envia bytes da imagem para análise
-4. Recebe emoção detectada
-5. **Só então** salva imagem no banco (LONGBLOB)
-6. Cria entidades relacionadas
-7. Retorna DTO com imagem em Base64
+1. Frontend envia `FormData` via `/analyses/upload`.
+2. Backend chama a API Python para validar e classificar.
+3. Imagem é persistida apenas após a resposta do serviço externo.
+4. Cria registros de Device/Image/Emotion/Result/ProcessingLog.
+5. Retorna DTO convertendo a imagem para Base64.
 
 ### ✅ Vantagens
 
-- ✅ Não precisa de servidor de arquivos separado (S3, CDN)
-- ✅ Transação atômica (salva tudo ou nada)
-- ✅ Imagem sempre sincronizada com registro
-- ✅ Backup simples (dump do banco)
-- ⚠️ Banco cresce rapidamente (considere limite de tamanho)
+- Transação atômica (salva tudo ou nada).
+- Dados consistentes e auditáveis.
+- Sem dependência de storage externo.
+- Backup simplificado (dump do banco).
 
 ---
 
 ## 🌐 Integração com Frontend
 
-### Enviar Imagem (Upload)
+### Upload
 
 ```javascript
 const formData = new FormData();
-formData.append('dispositivo', 'Camera01');
-formData.append('imagem', fileBlob); // File do input type="file"
+formData.append('device', 'Camera01');
+formData.append('image', fileInput.files[0]);
 
-fetch('http://localhost:8080/analises/upload', {
+fetch('http://localhost:8080/analyses/upload', {
   method: 'POST',
   body: formData
 })
-.then(res => res.json())
-.then(data => {
-  if (data.message) {
-	console.log('Sucesso:', data.data);
-  }
-});
+  .then(res => res.json())
+  .then(console.log);
 ```
 
-### Exibir Imagem (Base64)
+### Mostrar Base64
 
 ```javascript
-fetch('http://localhost:8080/analises/1')
+fetch('http://localhost:8080/analyses/1')
   .then(res => res.json())
   .then(data => {
-	// Exibe imagem direto do Base64
-	const img = document.getElementById('imgPreview');
-	img.src = `data:image/jpeg;base64,${data.imagemBase64}`;
+    img.src = `data:image/jpeg;base64,${data.imageBase64}`;
   });
 ```
 
-### Baixar Imagem (Blob)
+### Download direto
 
 ```javascript
-fetch('http://localhost:8080/analises/1/foto')
+fetch('http://localhost:8080/analyses/1/image')
   .then(res => res.blob())
   .then(blob => {
-	const url = URL.createObjectURL(blob);
-	const link = document.createElement('a');
-	link.href = url;
-	link.download = 'analise.jpg';
-	link.click();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'analysis.jpg';
+    link.click();
   });
 ```
 
@@ -359,65 +306,22 @@ fetch('http://localhost:8080/analises/1/foto')
 
 ## 🛠️ Solução de Problemas
 
-### Erro 503: "Serviço indisponível"
+### 503 Service Unavailable
+- **Causa:** API Python offline.
+- **Solução:** iniciar o servidor FastAPI e testar com `curl http://localhost:8000/docs`.
 
-**Causa:** API Python não está rodando
+### `Field 'imagem' doesn't have a default value`
+- **Causa:** coluna antiga `imagem` ainda existe.
+- **Solução:** remover a coluna conforme instruções em [Instalação](#instalação-e-configuração).
 
-**Solução:**
-```powershell
-cd face-service
-.\venv\Scripts\activate
-python -m uvicorn main:app --reload
-```
+### Porta 8080 em uso
+- `netstat -ano | findstr :8080`
+- `taskkill /F /PID <PID>`
 
-Verifique se está acessível:
-```powershell
-curl http://localhost:8000/docs
-```
-
----
-
-### Erro: "Field 'imagem' doesn't have a default value"
-
-**Causa:** Coluna antiga `imagem` coexistindo com `imagem_id`
-
-**Solução:**
-```sql
-USE security_face_id;
-ALTER TABLE analises DROP COLUMN imagem;
-```
-
----
-
-### Erro: "Port 8080 already in use"
-
-**Causa:** Servidor Java já está rodando
-
-**Solução:**
-```powershell
-# Encontrar processo
-netstat -ano | findstr :8080
-
-# Matar processo (substitua <PID>)
-taskkill /F /PID <PID>
-```
-
----
-
-
-
-### Imagem Não Aparece no Frontend
-
-**Verificações:**
-1. ✅ `imagemBase64` está presente no JSON?
-2. ✅ String Base64 está completa (sem quebras)?
-3. ✅ Prefixo `data:image/jpeg;base64,` adicionado?
-
-**Teste alternativo:**
-```javascript
-// Use endpoint /foto se Base64 falhar
-fetch('/analises/1/foto').then(res => res.blob())...
-```
+### Imagem não aparece no frontend
+- Verifique se `imageBase64` está presente na resposta.
+- Garanta o prefixo `data:image/jpeg;base64,`.
+- Como alternativa, busque `/analyses/{id}/image`.
 
 ---
 
@@ -426,82 +330,61 @@ fetch('/analises/1/foto').then(res => res.blob())...
 ```
 Back-End-Security-FaceID/
 ├── src/
-│   ├── main/
-│   │   ├── java/com/example/backend/
-│   │   │   ├── controller/
-│   │   │   │   └── AnalisesController.java      # Endpoints REST
-│   │   │   ├── service/
-│   │   │   │   └── AnalisesService.java         # Lógica de negócio
-│   │   │   ├── repository/
-│   │   │   │   ├── AnalisesRepository.java      # JPA Repositories
-│   │   │   │   ├── DispositivoRepository.java
-│   │   │   │   ├── ImagemRepository.java
-│   │   │   │   ├── EmocaoRepository.java
-│   │   │   │   ├── ResultadoRepository.java
-│   │   │   │   └── LogProcessamentoRepository.java
-│   │   │   ├── model/
-│   │   │   │   ├── AnalisesModel.java           # Entidades JPA
-│   │   │   │   ├── DispositivoModel.java
-│   │   │   │   ├── ImagemModel.java
-│   │   │   │   ├── EmocaoModel.java
-│   │   │   │   ├── ResultadoModel.java
-│   │   │   │   └── LogProcessamentoModel.java
-│   │   │   ├── dto/
-│   │   │   │   └── AnalisesDTO.java             # DTO para resposta
-│   │   │   ├── exception/
-│   │   │   │   └── ServiceUnavailableException.java
-│   │   │   └── BackendSecurityFaceIdApplication.java
-│   │   └── resources/
-│   │       └── application.properties            # Configurações
-│   └── test/
-├── target/                                       # Build artifacts
-├── pom.xml                                       # Maven dependencies
-└── README.md                                     # Este arquivo
+│   ├── main/java/com/example/backend/
+│   │   ├── controller/AnalysisController.java
+│   │   ├── service/
+│   │   │   ├── AnalysisService.java
+│   │   │   ├── DeviceService.java
+│   │   │   ├── ImageStorageService.java
+│   │   │   ├── EmotionRecordService.java
+│   │   │   ├── ResultRecordService.java
+│   │   │   ├── ProcessingLogService.java
+│   │   │   └── EmotionApiClient.java
+│   │   ├── mapper/AnalysisMapper.java
+│   │   ├── dto/AnalysisDTO.java
+│   │   ├── model/
+│   │   │   ├── AnalysisModel.java
+│   │   │   ├── DeviceModel.java
+│   │   │   ├── ImageModel.java
+│   │   │   ├── EmotionModel.java
+│   │   │   ├── ResultModel.java
+│   │   │   └── ProcessingLogModel.java
+│   │   ├── repository/
+│   │   │   ├── AnalysisRepository.java
+│   │   │   ├── DeviceRepository.java
+│   │   │   ├── ImageRepository.java
+│   │   │   ├── EmotionRepository.java
+│   │   │   ├── ResultRepository.java
+│   │   │   └── ProcessingLogRepository.java
+│   │   └── exception/ServiceUnavailableException.java
+│   └── resources/application.properties
+├── pom.xml
+└── README.md
 ```
 
 ---
 
-
-
 ## 🔐 Segurança
 
-### Recomendações para Produção
-
-1. **Senhas**: Use variáveis de ambiente
-   ```properties
-   spring.datasource.password=${DB_PASSWORD}
-   ```
-
-2. **CORS**: Restrinja origens permitidas
-   ```java
-   @CrossOrigin(origins = "https://seudominio.com")
-   ```
-
-3. **HTTPS**: Configure SSL/TLS
-
-4. **Validação**: Adicione limite de tamanho de arquivo
-   ```properties
-   spring.servlet.multipart.max-file-size=5MB
-   ```
+1. **Credenciais:** utilize variáveis de ambiente (`spring.datasource.password=${DB_PASSWORD}`).
+2. **CORS:** restrinja origens confiáveis (`@CrossOrigin(origins = "https://seudominio.com")`).
+3. **HTTPS:** configure TLS em produção.
+4. **Uploads:** limite o tamanho (`spring.servlet.multipart.max-file-size=5MB`).
 
 ---
 
-
-
-
-
 ## 📄 Licença
 
-Este projeto está sob a licença MIT.
+Projeto sob licença MIT.
 
 ---
 
 ## 👨‍💻 Autor
 
-Desenvolvido por Davi Mancebo
+Desenvolvido por Davi Mancebo.
 
 ---
 
 ## 🆘 Suporte
 
-Problemas ou dúvidas? Abra uma issue no repositório do GitHub.
+Abra uma issue no GitHub em caso de dúvidas ou problemas.

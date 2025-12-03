@@ -1,9 +1,9 @@
 package com.example.backend.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
 
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AnalisesModel {
+public class AnalysisModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,23 +22,23 @@ public class AnalisesModel {
 
     @ManyToOne
     @JoinColumn(name = "imagem_id")
-    private ImagemModel imagem;
+    private ImageModel image;
 
     @ManyToOne
     @JoinColumn(name = "dispositivo_id")
-    private DispositivoModel dispositivo;
+    private DeviceModel device;
 
     @ManyToOne
     @JoinColumn(name = "emocao_id")
-    private EmocaoModel emocao;
+    private EmotionModel emotion;
 
     @ManyToOne
     @JoinColumn(name = "resultado_id")
-    private ResultadoModel resultado;
+    private ResultModel result;
 
     @ManyToOne
     @JoinColumn(name = "log_id")
-    private LogProcessamentoModel logProcessamento;
+    private ProcessingLogModel processingLog;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
